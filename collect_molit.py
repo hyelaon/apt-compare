@@ -66,7 +66,7 @@ def parse(xml_text):
             continue
         items.append({
             "apt": g("aptNm"), "umd": g("umdNm"), "jibun": g("jibun"),
-            "bonbun": g("bonbun"), "bubun": g("bubun"),
+            "bonbun": g("bonbun"), "bubun": g("bubun"), "umdCd": g("umdCd"),
             "amount": amt,  # 만원
             "area": float(g("excluUseAr") or 0),  # 전용 ㎡
             "build": int(g("buildYear") or 0),
@@ -133,6 +133,7 @@ def main():
             "단지번호": f"{lawd}-{umd}-{apt}-{area}",
             "단지명": apt, "주소": f"{region} {umd}",
             "법정동명": umd, "법정동코드5": lawd, "지번본번": bb[0], "지번부번": bb[1],
+            "법정동읍면동코드": deals[0].get("umdCd"),  # 건축물대장 bjdongCd (리 단위까지)
             "매매최저가_만원": None,          # 현재 매물 호가 (수동 보강)
             "매물개수": None,
             "매물링크": "https://m.land.naver.com/search/result/"

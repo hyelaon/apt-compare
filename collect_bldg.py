@@ -152,10 +152,13 @@ def main():
     apts = DB["단지목록"]
     ok = 0; fail = 0
     for a in apts:
-        dong10 = DONGMAP.get(a["법정동코드5"], {}).get(a.get("법정동명", ""))
-        if not dong10:
+        bj = a.get("법정동읍면동코드")  # MOLIT umdCd (리 단위까지) 우선
+        if not bj:
+            dong10 = DONGMAP.get(a["법정동코드5"], {}).get(a.get("법정동명", ""))
+            bj = dong10[5:] if dong10 else None
+        if not bj:
             print(f"  ? {a['단지명']}: 동코드 없음({a.get('법정동명')})"); fail += 1; continue
-        sig = a["법정동코드5"]; bj = dong10[5:]
+        sig = a["법정동코드5"]
         bun = str(a["지번본번"]).zfill(4); ji = str(a["지번부번"]).zfill(4)
         res = get_bldg(sig, bj, bun, ji)
         if res is None:
