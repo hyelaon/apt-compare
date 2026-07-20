@@ -21,13 +21,18 @@ def hav(a, b, c, d):
 
 def extract(url):
     h = urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": UA}), timeout=20).read().decode("utf-8", "replace")
-    m = re.search(r'"region_code":"(\d+)","name":"([^"]+)","address":"([^"]+)","road_address":"([^"]*)"', h)
-    if not m: return None
-    rc, name, addr, road = m.groups()
-    seg = h[m.start():m.start()+1500]
-    def f(k, s=seg):
-        mm = re.search(r'"%s":\s*"?([^",}]+)"?' % k, s); return mm.group(1) if mm else None
-    return {"region_code": rc, "name": name, "address": addr, "road_address": road,
+    # region_code 블록 중 단지 정보(total_household + 준공/용적) 있는 것 선택 (필드 순서 무관)
+    best = None
+    for m in re.finditer(r'"region_code":"(\d+)"', h):
+        seg = h[max(0, m.start()-900):m.start()+1600]
+        if '"total_household"' in seg and ('"approval_date"' in seg or '"floor_area_ratio"' in seg) \
+           and '"address"' in seg and '"name"' in seg:
+            best = (m.group(1), seg); break
+    if not best: return None
+    rc, seg = best
+    def f(k):
+        mm = re.search(r'"%s":\s*"?([^",}\]]+)"?' % k, seg); return mm.group(1) if mm else None
+    return {"region_code": rc, "name": f("name"), "address": f("address"), "road_address": f("road_address"),
             "total_household": f("total_household"), "floor_max": f("floor_max"),
             "floor_area_ratio": f("floor_area_ratio"), "building_coverage_ratio": f("building_coverage_ratio"),
             "approval_date": f("approval_date"), "company": f("company"), "trade_count": f("trade_count")}
