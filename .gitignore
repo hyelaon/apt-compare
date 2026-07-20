@@ -1,0 +1,10 @@
+# API 키가 든 실제 설정 — 절대 커밋 금지 (config.example.json 만 공유)
+config.json
+
+# 로그·디버그
+data/*.log
+data/asking_debug.json
+
+# 파이썬
+__pycache__/
+*.pyc
