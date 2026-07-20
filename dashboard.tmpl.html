@@ -299,8 +299,9 @@ function renderCards(){
     <div class="cardhead"><h3>${r.단지명}</h3><div class="addr">${r.주소||''}</div></div>
     <div class="scorewrap"><div class="num tnum">${r._score}</div>
       <div class="bar"><i style="width:${r._score}%"></i></div><div class="lab">선호<br>점수</div></div>
-    <div class="price"><span class="big tnum">${won(priceMain)}</span>
-      <span class="cap">${priceCap}</span> ${underPill(r)}
+    <div class="price"><span class="big tnum">${won(r.실거래_직전_만원)}${(r.실거래_최고_만원&&r.실거래_최고_만원!==r.실거래_직전_만원)?`~${won(r.실거래_최고_만원)}`:''}</span>
+      <span class="cap">실거래</span> ${underPill(r)}
+      ${r.평형수>1?`<span class="pill neutral">${r.평형수}개 평형</span>`:''}
       ${r.호가_최저_만원?`<span class="pill warn">호가 ${wonR(r.호가_최저_만원)}~${wonR(r.호가_최고_만원)}${r.호가_매물수?` · ${r.호가_매물수}건`:''}</span>`:''}
       ${ASKING[r.단지번호]?`<span class="pill good askchip">내메모 ${esc(ASKING[r.단지번호])}</span>`:''}
       ${r.실거래_건수!=null?`<span class="pill neutral">거래 ${r.실거래_건수}건</span>`:''}</div>
@@ -311,8 +312,8 @@ function renderCards(){
       <div class="row"><span class="l">강남구청역</span>${r.대중교통_분!=null?`<span class="r tnum">${r.대중교통_분}분${r.대중교통_환승!=null?` · 환승 ${r.대중교통_환승}`:''}</span>`:(r.직선거리_km!=null?`<span class="r tnum">직선 ${r.직선거리_km}km</span>`:'<span class="r pend">보강예정</span>')}</div>
       <div class="row"><span class="l">연식</span><span class="r tnum">${r.준공연도}년</span></div>
       <div class="row"><span class="l">용적률</span>${pend(r.용적률, (r.용적률||'')+'%')}</div>
-      <div class="row"><span class="l">평형</span><span class="r tnum">${r.대표평형_평}평 · 전용 ${r.대표평형_전용_m2}㎡</span></div>
-      <div class="row"><span class="l">방 개수</span><span class="r tnum">약 ${r.방수_추정}개 (추정)</span></div>
+      <div class="row"><span class="l">평형</span><span class="r tnum">${r.평형수>1?`${r.평_최소}~${r.평_최대}평 · 전용 ${r.전용_최소}~${r.전용_최대}㎡`:`${r.대표평형_평}평 · 전용 ${r.대표평형_전용_m2}㎡`}</span></div>
+      <div class="row"><span class="l">방 개수</span><span class="r tnum">약 ${r.방수_최소===r.방수_최대?r.방수_최소:`${r.방수_최소}~${r.방수_최대}`}개</span></div>
       <div class="row"><span class="l">세대수</span>${pend(r.세대수, r.세대수!=null?(r.세대수.toLocaleString()+' · '+scaleLabel(r.세대수)):'')}</div>
       <div class="row"><span class="l">층수</span>${pend(r.층수, r.층수!=null?('지상 '+r.층수+'층'):'')}</div>
     </div>
@@ -335,11 +336,11 @@ const COLS=[
   {k:'rank',t:'#',get:r=>r.추가유형==='직접'?'＋':r._rank},
   {k:'name',t:'단지',get:r=>`<span class="nm">${r.단지명}</span><br><span class="sub">${r.주소||''}</span>`},
   {k:'score',t:'선호점수',get:r=>`<span class="scoretd">${r._score}</span>`},
-  {k:'price',t:'실거래(최근)',get:r=>won(r.실거래_직전_만원)},
+  {k:'price',t:'실거래',get:r=>won(r.실거래_직전_만원)+((r.실거래_최고_만원&&r.실거래_최고_만원!==r.실거래_직전_만원)?`~${won(r.실거래_최고_만원)}`:'')},
   {k:'transit',t:'강남구청역',get:r=>transitCell(r)},
   {k:'year',t:'연식',get:r=>r.준공연도+'년'},
   {k:'far',t:'용적률',get:r=>r.용적률==null?'<span class="sub">보강예정</span>':r.용적률+'%'},
-  {k:'py',t:'평형',get:r=>r.대표평형_평+'평'},
+  {k:'py',t:'평형',get:r=>r.평형수>1?`${r.평_최소}~${r.평_최대}평`:r.대표평형_평+'평'},
   {k:'hh',t:'세대수',get:r=>r.세대수==null?'<span class="sub">보강예정</span>':r.세대수.toLocaleString()},
   {k:'flr',t:'층수',get:r=>r.층수==null?'—':'지상 '+r.층수+'층'},
   {k:'deals',t:'실거래건수',get:r=>r.실거래_건수!=null?r.실거래_건수+'건':'—'},

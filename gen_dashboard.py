@@ -18,6 +18,37 @@ def clamp(v, a, b): return max(a, min(b, v))
 _mp = os.path.join(BASE, "data", "manual.json")
 _manual = json.load(open(_mp, encoding="utf-8")) if os.path.exists(_mp) else []
 apts = DB["단지목록"] + _manual
+
+# 같은 단지(법정동+단지명) 평형별 행 → 하나로 묶기(평형·가격 범위)
+from collections import defaultdict
+def merge_complexes(items):
+    groups = defaultdict(list)
+    for a in items:
+        groups[(a.get("법정동코드5"), a.get("법정동명"), a.get("단지명"), a.get("추가유형", "조사"))].append(a)
+    out = []
+    for g in groups.values():
+        g.sort(key=lambda x: x.get("대표평형_전용_m2", 0))
+        b = dict(g[0])  # 단지 공통정보는 대표(가장 작은 평형)에서
+        pys = [x["대표평형_평"] for x in g]
+        exs = [x["대표평형_전용_m2"] for x in g]
+        rec = [x["실거래_직전_만원"] for x in g if x.get("실거래_직전_만원") is not None]
+        b["평형수"] = len(g)
+        b["평_최소"], b["평_최대"] = min(pys), max(pys)
+        b["전용_최소"], b["전용_최대"] = min(exs), max(exs)
+        b["실거래_최저_만원"] = min(rec) if rec else None
+        b["실거래_최고_만원"] = max(rec) if rec else None
+        b["실거래_직전_만원"] = min(rec) if rec else b.get("실거래_직전_만원")  # 진입가=최저
+        b["실거래_평균_만원"] = round(sum(x.get("실거래_평균_만원", 0) or 0 for x in g) / len(g)) if rec else None
+        b["실거래_건수"] = sum((x.get("실거래_건수") or 0) for x in g)
+        b["대표평형_평"] = max(pys)
+        b["준공연도"] = max(x.get("준공연도", 0) for x in g)
+        for f in ("세대수", "용적률", "층수"):
+            vals = [x.get(f) for x in g if x.get(f) is not None]
+            b[f] = max(vals) if vals else None
+        out.append(b)
+    return out
+apts = merge_complexes(apts)
+
 prices = [a["실거래_직전_만원"] for a in apts if a.get("실거래_직전_만원") is not None]
 pmin, pmax = (min(prices), max(prices)) if prices else (0, 1)
 
@@ -65,7 +96,8 @@ def est_rooms(m2):  # 전용면적 기반 방 개수 추정(아파트 통상 기
 for a in apts:
     a.setdefault("추가유형", "조사")
     a["권역"] = region_group(a.get("주소", ""))
-    a["방수_추정"] = est_rooms(a.get("대표평형_전용_m2", 0))
+    a["방수_최소"] = est_rooms(a.get("전용_최소", a.get("대표평형_전용_m2", 0)))
+    a["방수_최대"] = est_rooms(a.get("전용_최대", a.get("대표평형_전용_m2", 0)))
     a["_score"] = score(a)
     # 현재 매물 호가 확인용 링크
     if a.get("네이버_hscpNo"):
