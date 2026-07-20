@@ -4,7 +4,7 @@
 건축물대장 조회(등록됐으면 공식값) 또는 호갱노노 값으로 채워 manual.json 에 추가.
 사용: python3 add_hogangnono.py <호갱노노_URL_또는_ID>
 """
-import sys, os, re, json, math, urllib.request, urllib.parse
+import sys, os, re, json, math, html as htmlmod, urllib.request, urllib.parse
 import collect_bldg as B
 
 BASE = os.path.dirname(os.path.abspath(__file__))
@@ -21,18 +21,28 @@ def hav(a, b, c, d):
 
 def extract(url):
     h = urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": UA}), timeout=20).read().decode("utf-8", "replace")
-    # region_code 블록 중 단지 정보(total_household + 준공/용적) 있는 것 선택 (필드 순서 무관)
-    best = None
-    for m in re.finditer(r'"region_code":"(\d+)"', h):
-        seg = h[max(0, m.start()-900):m.start()+1600]
-        if '"total_household"' in seg and ('"approval_date"' in seg or '"floor_area_ratio"' in seg) \
-           and '"address"' in seg and '"name"' in seg:
-            best = (m.group(1), seg); break
-    if not best: return None
-    rc, seg = best
-    def f(k):
-        mm = re.search(r'"%s":\s*"?([^",}\]]+)"?' % k, seg); return mm.group(1) if mm else None
-    return {"region_code": rc, "name": f("name"), "address": f("address"), "road_address": f("road_address"),
+    # 단지명은 og:title에서 안정적으로 추출: "'동 단지명'..." 형태
+    t = re.search(r'og:title"[^>]*content="([^"]+)"', h)
+    title = htmlmod.unescape(t.group(1)) if t else ""
+    nm = re.search(r"'([^']+)'", title)
+    if not nm: return None
+    cname = re.sub(r'^[가-힣]+(?:동|읍|면|리)\s+', '', nm.group(1).strip())  # 동 접두 제거
+    # 그 단지명의 데이터 블록(region_code 포함) 찾기 — 이름이 여러 번 나오므로 반복
+    back = fwd = None; rcm = None
+    pats = [r'"name":"' + re.escape(cname) + r'"', r'"name":"' + re.escape(cname[:5]) + r'[^"]*"']
+    for pat in pats:
+        for mm in re.finditer(pat, h):
+            b = h[max(0, mm.start()-800):mm.start()]; fw = h[mm.start():mm.start()+4000]
+            r = re.search(r'"region_code":"(\d+)"', b) or re.search(r'"region_code":"(\d+)"', fw)
+            if r and ('"total_household"' in fw or '"address"' in fw):
+                back, fwd, rcm = b, fw, r; break
+        if rcm: break
+    if not rcm: return None
+    def f(k, s=None):
+        m2 = re.search(r'"%s":\s*"?([^",}\]]+)"?' % k, s if s is not None else fwd)
+        return m2.group(1) if m2 else None
+    return {"region_code": rcm.group(1) if rcm else None, "name": cname,
+            "address": f("address"), "road_address": f("road_address"),
             "total_household": f("total_household"), "floor_max": f("floor_max"),
             "floor_area_ratio": f("floor_area_ratio"), "building_coverage_ratio": f("building_coverage_ratio"),
             "approval_date": f("approval_date"), "company": f("company"), "trade_count": f("trade_count"),
@@ -53,8 +63,8 @@ def odsay(c):
 def main(url):
     if not url.startswith("http"): url = "https://hogangnono.com/apt/" + url
     d = extract(url)
-    if not d:
-        print("❌ 페이지에서 단지 정보를 못 찾음"); return
+    if not d or not d.get("region_code"):
+        print("❌ 페이지에서 단지 정보를 못 찾음(region_code)"); return
     rc = d["region_code"]; lawd = rc[:5]; bjdong = rc[5:]
     am = re.search(r'([가-힣]+(?:동|읍|면|리|가\d?))\s', d["address"] + " ")
     dong = am.group(1) if am else d["address"].split()[-2]
