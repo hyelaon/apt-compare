@@ -49,6 +49,12 @@ def merge_complexes(items):
     return out
 apts = merge_complexes(apts)
 
+# 네이버 매물 0건(=호갱노노도 없음으로 간주) 단지는 제외. 미확인(None)·있음은 유지.
+# 매물이 다시 올라오면 다음 갱신 때 자동 복귀(영구삭제 아님).
+_before = len(apts)
+apts = [a for a in apts if a.get("네이버_매물수") != 0]
+print(f"매물 0건 제외: {_before - len(apts)}개 → 남은 {len(apts)}개")
+
 prices = [a["실거래_직전_만원"] for a in apts if a.get("실거래_직전_만원") is not None]
 pmin, pmax = (min(prices), max(prices)) if prices else (0, 1)
 
