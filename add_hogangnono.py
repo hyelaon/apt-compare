@@ -35,7 +35,8 @@ def extract(url):
     return {"region_code": rc, "name": f("name"), "address": f("address"), "road_address": f("road_address"),
             "total_household": f("total_household"), "floor_max": f("floor_max"),
             "floor_area_ratio": f("floor_area_ratio"), "building_coverage_ratio": f("building_coverage_ratio"),
-            "approval_date": f("approval_date"), "company": f("company"), "trade_count": f("trade_count")}
+            "approval_date": f("approval_date"), "company": f("company"), "trade_count": f("trade_count"),
+            "private_area": f("private_area"), "public_area": f("public_area")}
 
 def odsay(c):
     if not c or not c[0]: return None, None, None
@@ -89,7 +90,9 @@ def main(url):
         "매매최저가_만원": None, "매물개수": None,
         "실거래_직전_만원": None, "실거래_평균_만원": None, "실거래_거래일": None, "실거래_건수": None,
         "준공연도": yr, "용적률": vlrat, "건폐율": bcrat, "세대수": hh, "층수": flr,
-        "대표평형_평": None, "대표평형_전용_m2": None, "대표평형_공급_m2": None,
+        "대표평형_평": (round(float(d["public_area"]) / 3.3058) if d.get("public_area") else None),
+        "대표평형_전용_m2": (round(float(d["private_area"])) if d.get("private_area") else None),
+        "대표평형_공급_m2": (round(float(d["public_area"])) if d.get("public_area") else None),
         "용도": purps or ("아파트(분양예정)" if not has_deal else "아파트"), "주차대수": park,
         "노후도_코멘트": f"{yr}년{'(입주예정)' if not has_deal else ''} · {hh or '?'}세대 {flr or '?'}층"
                     + (f" · 시공 {d['company']}" if d.get("company") else "") + (" (분양중)" if not has_deal else ""),
