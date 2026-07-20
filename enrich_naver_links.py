@@ -5,7 +5,7 @@
 - 링크: https://fin.land.naver.com/complexes/{hscpNo}  (네이버페이 부동산, 매물 표시)
 gen 전에 실행.
 """
-import os, json, time, re, urllib.request, urllib.parse
+import os, json, time, re, difflib, urllib.request, urllib.parse
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 DBP = os.path.join(BASE, "data", "apartments.json")
@@ -18,10 +18,34 @@ def norm(s):
     s = s.replace("아파트", "").replace(" ", "")
     return s
 
+_region_cache = {}
+def sub_regions(cortar):
+    """상위 법정동코드의 하위(리/동) 목록."""
+    if cortar in _region_cache: return _region_cache[cortar]
+    try:
+        req = urllib.request.Request(
+            f"https://m.land.naver.com/map/getRegionList?cortarNo={cortar}",
+            headers={"User-Agent": UA, "Referer": "https://m.land.naver.com/"})
+        data = json.loads(urllib.request.urlopen(req, timeout=15).read().decode("utf-8", "replace"))
+        res = {x["CortarNm"]: x["CortarNo"] for x in data.get("result", {}).get("list", [])}
+        time.sleep(0.2)
+    except Exception:
+        res = {}
+    _region_cache[cortar] = res
+    return res
+
 def dong_code(lawd, umd):
     dm = DC.get(lawd, {}).get("dongs", {})
     if umd in dm: return dm[umd]
-    for p in (umd or "").split():
+    parts = (umd or "").split()
+    # "퇴계원읍 퇴계원리" 처럼 읍/면 + 리 → 리(里) 코드로 한 단계 더 들어감
+    if len(parts) >= 2 and parts[0] in dm:
+        subs = sub_regions(dm[parts[0]])
+        if parts[1] in subs: return subs[parts[1]]
+        for nm, code in subs.items():
+            if parts[1] in nm or nm in parts[1]: return code
+        return dm[parts[0]]
+    for p in parts:
         if p in dm: return dm[p]
     for k, v in dm.items():
         if umd and (umd.startswith(k) or k in umd): return v
@@ -49,13 +73,15 @@ for a in DB["단지목록"]:
     hscp = None; deal = None
     if dc:
         cn = norm(a["단지명"])
-        best = None
+        best = None; bestscore = 0.0
         for c in complexes(dc):
             nm = norm(c.get("hscpNm", ""))
             if not nm: continue
-            if nm == cn or cn in nm or nm in cn:
-                best = c
-                if nm == cn: break
+            if nm == cn:
+                best = c; break
+            s = 1.0 if (cn in nm or nm in cn) else difflib.SequenceMatcher(None, cn, nm).ratio()
+            if s > bestscore and s >= 0.6:
+                bestscore = s; best = c
         if best:
             hscp = best["hscpNo"]
             deal = best.get("dealCnt")  # 현재 매매 매물 수
