@@ -35,8 +35,8 @@ PCACHE = json.load(open(PCACHE_PATH, encoding="utf-8")) if os.path.exists(PCACHE
 def get_bldg(sig, bj, bun, ji):
     """지번별 용적률·세대수·층수 (영구 캐시 우선)."""
     k = f"{sig}|{bj}|{bun}|{ji}"
-    if k in PCACHE:
-        return PCACHE[k]
+    if k in PCACHE and all(x in PCACHE[k] for x in ("건폐율", "용도", "주차대수")):
+        return PCACHE[k]  # 새 필드 없는 옛 캐시는 재수집
     body = fetch(TITLE_EP, sig, bj, bun, ji)
     if body is None:
         return None
@@ -46,8 +46,11 @@ def get_bldg(sig, bj, bun, ji):
     rbody = fetch(RECAP_EP, sig, bj, bun, ji, tries=3)
     recap = parse_recap(rbody) if rbody else {}
     res = {"용적률": recap.get("용적률") or info["용적률"],
+           "건폐율": recap.get("건폐율") or info.get("건폐율"),
            "세대수": recap.get("세대수") or info["세대수"],
-           "층수": info.get("층수") or recap.get("층수")}
+           "층수": info.get("층수") or recap.get("층수"),
+           "용도": info.get("용도") or recap.get("용도"),
+           "주차대수": recap.get("주차대수") or info.get("주차대수")}
     PCACHE[k] = res
     return res
 
@@ -82,12 +85,24 @@ def parse(xml_text):
     items = root.findall(".//item")
     apt = [it for it in items if "공동주택" in (it.findtext("mainPurpsCdNm") or "")]
     use = apt or items  # 공동주택 표제부 없으면 전체(근생 등)로 폴백
-    vlrat, hh, flr = None, 0, None
+    vlrat, hh, flr, bcrat, purps, park = None, 0, None, None, None, 0
     for it in use:
         g = lambda t: (it.findtext(t) or "").strip()
+        for pk in ("indrMechUtcnt", "oudrMechUtcnt", "indrAutoUtcnt", "oudrAutoUtcnt"):
+            try: park += int(float(g(pk) or 0))
+            except ValueError: pass
+        if not purps:
+            purps = (g("mainPurpsCdNm") or None)  # 주용도(공동주택 등)
+            etc = g("etcPurps")
+            if purps and etc and "아파트" in etc: purps = "아파트"
+            elif purps and etc and "주상복합" in etc: purps = "주상복합"
         try:
             v = float(g("vlRat") or 0)
             if v: vlrat = max(vlrat or 0, v)
+        except ValueError: pass
+        try:
+            b = float(g("bcRat") or 0)
+            if b: bcrat = max(bcrat or 0, b)  # 건폐율
         except ValueError: pass
         try:
             hh += int(float(g("hhldCnt") or 0))
@@ -96,7 +111,8 @@ def parse(xml_text):
             f = int(float(g("grndFlrCnt") or 0))
             if f: flr = max(flr or 0, f)  # 지상 최고 층수
         except ValueError: pass
-    return {"용적률": round(vlrat) if vlrat else None, "세대수": hh or None, "층수": flr}, None
+    return {"용적률": round(vlrat) if vlrat else None, "건폐율": round(bcrat) if bcrat else None,
+            "세대수": hh or None, "층수": flr, "용도": purps, "주차대수": park or None}, None
 
 def parse_recap(xml_text):
     # 총괄표제부: 단지 전체 용적률·총세대수 (단일 item)
@@ -112,6 +128,10 @@ def parse_recap(xml_text):
         if v: out["용적률"] = round(v)
     except ValueError: pass
     try:
+        b = float(g("bcRat") or 0)
+        if b: out["건폐율"] = round(b)
+    except ValueError: pass
+    try:
         h = int(float(g("hhldCnt") or 0))
         if h: out["세대수"] = h
     except ValueError: pass
@@ -119,6 +139,11 @@ def parse_recap(xml_text):
         f = int(float(g("grndFlrCnt") or 0))
         if f: out["층수"] = f
     except ValueError: pass
+    p = 0
+    for pk in ("indrMechUtcnt", "oudrMechUtcnt", "indrAutoUtcnt", "oudrAutoUtcnt"):
+        try: p += int(float(g(pk) or 0))
+        except ValueError: pass
+    if p: out["주차대수"] = p
     return out
 
 def main():
@@ -140,7 +165,9 @@ def main():
             if any(k in res['_err'].upper() for k in ("SERVICE", "KEY")) or "등록" in res['_err']:
                 print("  → 건축물대장 API 활용신청/승인 상태를 확인하세요."); return
             fail += 1; continue
-        a["용적률"] = res["용적률"]; a["세대수"] = res["세대수"]; a["층수"] = res["층수"]
+        a["용적률"] = res["용적률"]; a["건폐율"] = res.get("건폐율")
+        a["세대수"] = res["세대수"]; a["층수"] = res["층수"]; a["용도"] = res.get("용도")
+        a["주차대수"] = res.get("주차대수")
         age = 2026 - a.get("준공연도", 2026)
         a["노후도_코멘트"] = (f"{a['준공연도']}년 준공(약 {age}년차) — "
                         + ("준신축·양호" if age<=10 else "중간 연식" if age<=20 else "노후 진행"))
@@ -149,7 +176,7 @@ def main():
 
     # 단지 내 값 전파(같은 법정동·단지명끼리 채움)
     best = {}
-    FIELDS = ("용적률", "세대수", "층수")
+    FIELDS = ("용적률", "건폐율", "세대수", "층수", "용도", "주차대수")
     for a in apts:
         k = (a["법정동코드5"], a["단지명"])
         if any(a.get(x) is not None for x in FIELDS):

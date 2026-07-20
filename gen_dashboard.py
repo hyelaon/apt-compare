@@ -42,9 +42,10 @@ def merge_complexes(items):
         b["실거래_건수"] = sum((x.get("실거래_건수") or 0) for x in g)
         b["대표평형_평"] = max(pys)
         b["준공연도"] = max(x.get("준공연도", 0) for x in g)
-        for f in ("세대수", "용적률", "층수"):
+        for f in ("세대수", "용적률", "건폐율", "층수", "주차대수"):
             vals = [x.get(f) for x in g if x.get(f) is not None]
             b[f] = max(vals) if vals else None
+        b["용도"] = next((x.get("용도") for x in g if x.get("용도")), b.get("용도"))
         out.append(b)
     return out
 apts = merge_complexes(apts)
@@ -104,6 +105,8 @@ for a in apts:
     a["권역"] = region_group(a.get("주소", ""))
     a["방수_최소"] = est_rooms(a.get("전용_최소", a.get("대표평형_전용_m2", 0)))
     a["방수_최대"] = est_rooms(a.get("전용_최대", a.get("대표평형_전용_m2", 0)))
+    if a.get("주차대수") and a.get("세대수"):
+        a["세대당주차"] = round(a["주차대수"] / a["세대수"], 2)
     a["_score"] = score(a)
     # 현재 매물 호가 확인용 링크
     if a.get("네이버_hscpNo"):
