@@ -93,18 +93,25 @@ def add(name, lawd, dong, naver=None):
         "노후도_코멘트": None, "실리뷰_코멘트": None, "감성점수": None,
         "네이버_hscpNo": naver, "추가유형": "직접",
     }
-    # 2) 건축물대장: 용적률·세대수·층수
-    dong10 = B.DONGMAP.get(lawd, {}).get(dong)
-    if dong10:
-        bj = dong10[5:]; bun = str(bb[0]).zfill(4); ji = str(bb[1]).zfill(4)
+    # 2) 건축물대장: 용적률·건폐율·세대수·층수·용도·주차 (MOLIT umdCd를 bjdongCd로)
+    bj = g[0].get("umdCd")
+    if not bj:
+        d10 = B.DONGMAP.get(lawd, {}).get(dong)
+        bj = d10[5:] if d10 else None
+    entry["법정동읍면동코드"] = g[0].get("umdCd")
+    if bj:
+        bun = str(bb[0]).zfill(4); ji = str(bb[1]).zfill(4)
         body = B.fetch(B.TITLE_EP, lawd, bj, bun, ji)
         if body:
             info, _ = B.parse(body)
             rbody = B.fetch(B.RECAP_EP, lawd, bj, bun, ji, tries=3)
             recap = B.parse_recap(rbody) if rbody else {}
             entry["용적률"] = recap.get("용적률") or info["용적률"]
+            entry["건폐율"] = recap.get("건폐율") or info.get("건폐율")
             entry["세대수"] = recap.get("세대수") or info["세대수"]
             entry["층수"] = info.get("층수") or recap.get("층수")
+            entry["용도"] = info.get("용도") or recap.get("용도")
+            entry["주차대수"] = recap.get("주차대수") or info.get("주차대수")
             age = 2026 - build
             entry["노후도_코멘트"] = f"{build}년 준공(약 {age}년차) — " + \
                 ("준신축·양호" if age <= 10 else "중간 연식" if age <= 20 else "노후 진행")

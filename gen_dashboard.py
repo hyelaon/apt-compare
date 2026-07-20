@@ -98,6 +98,7 @@ def region_group(addr):
     return "경기 남부"
 
 def est_rooms(m2):  # 전용면적 기반 방 개수 추정(아파트 통상 기준)
+    if not m2: return None
     return 2 if m2 < 60 else 3 if m2 < 95 else 4
 
 for a in apts:
@@ -113,8 +114,8 @@ for a in apts:
         a["매물링크_네이버"] = f"https://fin.land.naver.com/complexes/{a['네이버_hscpNo']}"
     else:
         a["매물링크_네이버"] = "https://m.land.naver.com/search/result/" + urllib.parse.quote(a["단지명"])
-    a["매물링크_호갱"] = "https://www.google.com/search?q=" + \
-        urllib.parse.quote(f"{a['단지명']} {a.get('법정동명','')} 호갱노노")
+    a["매물링크_호갱"] = a.get("호갱링크") or ("https://www.google.com/search?q=" +
+        urllib.parse.quote(f"{a['단지명']} {a.get('법정동명','')} 호갱노노"))
 
 regions = " · ".join(r["이름"] for r in CFG["대상권역"]["목록"] if r.get("status") == "active")
 payload = {

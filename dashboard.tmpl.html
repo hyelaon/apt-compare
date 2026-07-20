@@ -312,8 +312,8 @@ function renderCards(){
       <div class="row"><span class="l">강남구청역</span>${r.대중교통_분!=null?`<span class="r tnum">${r.대중교통_분}분${r.대중교통_환승!=null?` · 환승 ${r.대중교통_환승}`:''}</span>`:(r.직선거리_km!=null?`<span class="r tnum">직선 ${r.직선거리_km}km</span>`:'<span class="r pend">보강예정</span>')}</div>
       <div class="row"><span class="l">연식</span><span class="r tnum">${r.준공연도}년</span></div>
       <div class="row"><span class="l">용적률·건폐율</span>${r.용적률!=null?`<span class="r tnum">${r.용적률}%${r.건폐율!=null?` · 건폐 ${r.건폐율}%`:''}</span>`:'<span class="r pend">보강예정</span>'}</div>
-      <div class="row"><span class="l">평형</span><span class="r tnum">${r.평형수>1?`${r.평_최소}~${r.평_최대}평 · 전용 ${r.전용_최소}~${r.전용_최대}㎡`:`${r.대표평형_평}평 · 전용 ${r.대표평형_전용_m2}㎡`}</span></div>
-      <div class="row"><span class="l">방 개수</span><span class="r tnum">약 ${r.방수_최소===r.방수_최대?r.방수_최소:`${r.방수_최소}~${r.방수_최대}`}개</span></div>
+      <div class="row"><span class="l">평형</span>${r.대표평형_평==null?'<span class="r pend">정보 없음</span>':`<span class="r tnum">${r.평형수>1?`${r.평_최소}~${r.평_최대}평 · 전용 ${r.전용_최소}~${r.전용_최대}㎡`:`${r.대표평형_평}평 · 전용 ${r.대표평형_전용_m2}㎡`}</span>`}</div>
+      <div class="row"><span class="l">방 개수</span>${r.방수_최소==null?'<span class="r pend">—</span>':`<span class="r tnum">약 ${r.방수_최소===r.방수_최대?r.방수_최소:`${r.방수_최소}~${r.방수_최대}`}개</span>`}</div>
       <div class="row"><span class="l">세대수</span>${pend(r.세대수, r.세대수!=null?(r.세대수.toLocaleString()+' · '+scaleLabel(r.세대수)):'')}</div>
       <div class="row"><span class="l">층수</span>${pend(r.층수, r.층수!=null?('지상 '+r.층수+'층'):'')}</div>
       <div class="row"><span class="l">건축물 용도</span>${r.용도?`<span class="r">${r.용도}</span>`:'<span class="r pend">—</span>'}</div>
