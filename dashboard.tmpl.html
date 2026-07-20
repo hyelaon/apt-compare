@@ -138,6 +138,7 @@
   .links{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:2px;
     padding-top:10px;border-top:1px solid var(--border)}
   .lk-label{font-size:11px;color:var(--faint);font-weight:700;text-transform:uppercase;letter-spacing:.03em}
+  .lk-none{font-style:italic;text-transform:none;letter-spacing:0}
   .controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 12px}
   .controls label{font-size:12.5px;color:var(--muted);font-weight:600}
   select{font:inherit;font-size:13px;padding:6px 10px;border-radius:9px;border:1px solid var(--border);background:var(--surface);color:var(--text);cursor:pointer}
@@ -318,9 +319,11 @@ function renderCards(){
     <div class="comment ${r.노후도_코멘트?'':'pend'}"><span class="cl">노후도</span>${r.노후도_코멘트||'보강 예정'}</div>
     <div class="comment ${r.실리뷰_코멘트?'':'pend'}"><span class="cl">실리뷰</span>${r.실리뷰_코멘트||'보강 예정'}</div>
     <div class="links">
-      <span class="lk-label">현재 매물 호가:</span>
-      <a class="link" href="${r.매물링크_네이버}" target="_blank" rel="noopener">네이버 →</a>
-      <a class="link" href="${r.매물링크_호갱}" target="_blank" rel="noopener">호갱노노 →</a>
+      ${r.네이버_매물수===0
+        ? `<span class="lk-label lk-none">현재 등록 매물 없음</span>`
+        : `<span class="lk-label">현재 매물 호가:</span>
+           <a class="link" href="${r.매물링크_네이버}" target="_blank" rel="noopener">네이버${r.네이버_매물수?` ${r.네이버_매물수}건`:''} →</a>
+           <a class="link" href="${r.매물링크_호갱}" target="_blank" rel="noopener">호갱노노 →</a>`}
     </div>
     <textarea class="memoin" data-id="${r.단지번호}" placeholder="📝 메모 남기기…" rows="1">${esc(COMMENTS[r.단지번호])}</textarea>
   </div>`;

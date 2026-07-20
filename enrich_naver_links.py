@@ -46,7 +46,7 @@ def complexes(dongCortar):
 hit = miss = 0
 for a in DB["단지목록"]:
     dc = dong_code(a.get("법정동코드5"), a.get("법정동명"))
-    hscp = None
+    hscp = None; deal = None
     if dc:
         cn = norm(a["단지명"])
         best = None
@@ -54,10 +54,13 @@ for a in DB["단지목록"]:
             nm = norm(c.get("hscpNm", ""))
             if not nm: continue
             if nm == cn or cn in nm or nm in cn:
-                best = c["hscpNo"]
+                best = c
                 if nm == cn: break
-        hscp = best
+        if best:
+            hscp = best["hscpNo"]
+            deal = best.get("dealCnt")  # 현재 매매 매물 수
     a["네이버_hscpNo"] = hscp
+    a["네이버_매물수"] = deal
     if hscp: hit += 1
     else: miss += 1
 
