@@ -112,8 +112,20 @@ def est_rooms(m2):  # 전용면적 기반 방 개수 추정(아파트 통상 기
     if not m2: return None
     return 2 if m2 < 60 else 3 if m2 < 95 else 4
 
+# 수동 오버레이: 자동수집 단지에 메모·링크 등을 덧입힌다(자동 갱신에도 유지).
+# data/overrides.json = [{ "단지명": ..., "법정동명": (선택), "set": { "가격메모": ..., "분양홈페이지": ... } }, ...]
+_ovp = os.path.join(BASE, "data", "overrides.json")
+_overrides = json.load(open(_ovp, encoding="utf-8")) if os.path.exists(_ovp) else []
+def apply_overrides(a):
+    for ov in _overrides:
+        if ov.get("단지명") and ov["단지명"] != a.get("단지명"): continue
+        if ov.get("법정동명") and ov["법정동명"] not in (a.get("법정동명") or ""): continue
+        for k, v in (ov.get("set") or {}).items():
+            a[k] = v
+
 for a in apts:
     a.setdefault("추가유형", "조사")
+    apply_overrides(a)
     a["권역"] = region_group(a.get("주소", ""))
     a["방수_최소"] = est_rooms(a.get("전용_최소", a.get("대표평형_전용_m2", 0)))
     a["방수_최대"] = est_rooms(a.get("전용_최대", a.get("대표평형_전용_m2", 0)))
