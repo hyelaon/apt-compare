@@ -57,6 +57,13 @@ if _excl:
     apts = [a for a in apts if not any(x in (a.get("주소") or "") for x in _excl)]
     print(f"제외지역({', '.join(_excl)}) 제외: {_b - len(apts)}개 → 남은 {len(apts)}개")
 
+# 준공연도 하드필터: 오래된 아파트 제외(자동 갱신에도 유지). 현 기준 2006↑(2026 기준 21년 미만).
+_ymin = CFG.get("하드필터", {}).get("준공연도_최소")
+if _ymin:
+    _b = len(apts)
+    apts = [a for a in apts if not a.get("준공연도") or a["준공연도"] >= _ymin]
+    print(f"준공 {_ymin}년 미만 제외: {_b - len(apts)}개 → 남은 {len(apts)}개")
+
 # 네이버 매매 매물이 확인된 곳(>0)만 유지. 0건·미확인(네이버에서 안 잡힘=매물없음 추정) 제외.
 # 직접 추가(manual)는 항상 유지. 매물 복귀 시 다음 갱신에 자동 재등장(영구삭제 아님).
 _before = len(apts)
