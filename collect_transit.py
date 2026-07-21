@@ -89,6 +89,6 @@ for a in DB["단지목록"]:
 DB["단지목록"] = kept
 json.dump(DB, open(DBP, "w", encoding="utf-8"), ensure_ascii=False, indent=2)
 print(f"\nODsay 계산 {calc}개 동 · 캐시 {len(CACHE)}건")
-print(f"실측 60분 초과 제외 {len(dropped)}개 · 남은 {len(kept)}개")
+print(f"실측 {MAXMIN}분 초과 제외 {len(dropped)}개 · 남은 {len(kept)}개")
 for a, m in sorted(dropped, key=lambda x: -x[1])[:8]:
     print(f"  - {a['단지명']} ({a['주소']}) {m}분")

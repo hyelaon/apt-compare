@@ -61,11 +61,17 @@
   .rf:hover{color:var(--text);border-color:var(--accent)}
   .rf.active{background:var(--accent);color:#fff;border-color:var(--accent)}
   :root[data-theme="dark"] .rf.active{color:#0e1016}
+  .rf-n{font-size:11px;font-weight:800;opacity:.6;margin-left:1px}
   .rf-sep{width:1px;height:20px;background:var(--border);margin:0 2px}
   .bookonly{border:1px solid var(--border);background:var(--surface);color:var(--muted);
     border-radius:999px;padding:7px 14px;font-size:13px;font-weight:700;cursor:pointer}
   .bookonly:hover{color:#e0a90a;border-color:#e0a90a}
   .bookonly.active{background:#f0b410;color:#4a3600;border-color:#f0b410}
+  .addonly{border:1px solid var(--border);background:var(--surface);color:var(--muted);
+    border-radius:999px;padding:7px 14px;font-size:13px;font-weight:700;cursor:pointer}
+  .addonly:hover{color:var(--add);border-color:var(--add)}
+  .addonly.active{background:var(--add);color:#fff;border-color:var(--add)}
+  :root[data-theme="dark"] .addonly.active{color:#0e1016}
   .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:26px}
   .tile{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
     padding:14px 16px;box-shadow:var(--shadow)}
@@ -183,12 +189,10 @@
 
   <div class="regionfilter" id="regionFilter">
     <span class="rf-label">지역</span>
-    <button class="rf active" data-f="all" type="button">전체</button>
-    <button class="rf" data-f="서울" type="button">서울</button>
-    <button class="rf" data-f="경기 남부" type="button">경기 남부</button>
-    <button class="rf" data-f="경기 북부" type="button">경기 북부</button>
+    <span id="regionBtns" style="display:contents"></span>
     <span class="rf-sep"></span>
     <button class="bookonly" id="bookOnlyBtn" type="button">☆ 북마크만</button>
+    <button class="addonly" id="addOnlyBtn" type="button">＋ 직접추가만</button>
   </div>
 
   <div class="hiddenbar" id="hiddenBar"></div>
@@ -235,7 +239,7 @@ const wonR = v => {const e=Math.floor(v/10000),t=Math.round((v%10000)/1000);retu
 const scaleLabel = n => n==null?null : n>=1000?"대단지":n>=300?"중단지":"소단지";
 const rows = DATA.slice().sort((a,b)=>b._score-a._score);
 rows.forEach((r,i)=>r._rank=i+1);
-let REGION='all', ONLYBOOK=false;
+let REGION='all', ONLYBOOK=false, ONLYADDED=false;
 const HIDDEN=new Set(JSON.parse(localStorage.getItem('apt_hidden')||'[]'));
 const saveHidden=()=>localStorage.setItem('apt_hidden',JSON.stringify([...HIDDEN]));
 const BOOK=new Set(JSON.parse(localStorage.getItem('apt_bookmarks')||'[]'));
@@ -245,7 +249,7 @@ const saveComments=()=>localStorage.setItem('apt_comments',JSON.stringify(COMMEN
 let ASKING=JSON.parse(localStorage.getItem('apt_asking')||'{}');
 const saveAsking=()=>localStorage.setItem('apt_asking',JSON.stringify(ASKING));
 const esc=s=>(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-const filtered=()=>rows.filter(r=>!HIDDEN.has(r.단지번호)&&(!ONLYBOOK||BOOK.has(r.단지번호))&&(REGION==='all'||r.권역===REGION));
+const filtered=()=>rows.filter(r=>!HIDDEN.has(r.단지번호)&&(!ONLYBOOK||BOOK.has(r.단지번호))&&(!ONLYADDED||r.추가유형==='직접')&&(REGION==='all'||r.권역===REGION));
 
 /* status banner */
 document.getElementById('statusBanner').innerHTML =
@@ -301,6 +305,7 @@ function renderCards(){
       <div class="bar"><i style="width:${r._score}%"></i></div><div class="lab">선호<br>점수</div></div>
     <div class="price"><span class="big tnum">${won(r.실거래_직전_만원)}${(r.실거래_최고_만원&&r.실거래_최고_만원!==r.실거래_직전_만원)?`~${won(r.실거래_최고_만원)}`:''}</span>
       <span class="cap">실거래</span> ${underPill(r)}
+      ${r.가격메모?`<span class="pill good">🏷️ ${esc(r.가격메모)}</span>`:''}
       ${r.평형수>1?`<span class="pill neutral">${r.평형수}개 평형</span>`:''}
       ${r.호가_최저_만원?`<span class="pill warn">호가 ${wonR(r.호가_최저_만원)}~${wonR(r.호가_최고_만원)}${r.호가_매물수?` · ${r.호가_매물수}건`:''}</span>`:''}
       ${ASKING[r.단지번호]?`<span class="pill good askchip">내메모 ${esc(ASKING[r.단지번호])}</span>`:''}
@@ -327,6 +332,7 @@ function renderCards(){
         : `<span class="lk-label">현재 매물 호가:</span>
            <a class="link" href="${r.매물링크_네이버}" target="_blank" rel="noopener">네이버${r.네이버_매물수?` ${r.네이버_매물수}건`:''} →</a>
            <a class="link" href="${r.매물링크_호갱}" target="_blank" rel="noopener">호갱노노 →</a>`}
+      ${r.분양홈페이지?`<a class="link" href="${esc(r.분양홈페이지)}" target="_blank" rel="noopener">🏠 분양 홈페이지 →</a>`:''}
     </div>
     <textarea class="memoin" data-id="${r.단지번호}" placeholder="📝 메모 남기기…" rows="1">${esc(COMMENTS[r.단지번호])}</textarea>
   </div>`;
@@ -359,6 +365,15 @@ function renderHiddenBar(){
   document.getElementById('hiddenBar').innerHTML =
     n ? `🗑️ 숨긴 단지 <b>${n}개</b> <button id="restoreBtn" type="button">전체 복원</button>` : '';
 }
+/* 지역 버튼 — 데이터의 권역(시)에서 자동 생성. 서울 먼저, 나머지는 단지 수 많은 순. */
+(function buildRegionBtns(){
+  const cnt={}; rows.forEach(r=>{cnt[r.권역]=(cnt[r.권역]||0)+1;});
+  const regs=Object.keys(cnt).sort((a,b)=>
+    (a==='서울'?-1:b==='서울'?1:0)||(cnt[b]-cnt[a])||a.localeCompare(b,'ko'));
+  document.getElementById('regionBtns').innerHTML =
+    `<button class="rf active" data-f="all" type="button">전체</button>`+
+    regs.map(rg=>`<button class="rf" data-f="${esc(rg)}" type="button">${esc(rg)} <span class="rf-n">${cnt[rg]}</span></button>`).join('');
+})();
 function renderAll(){renderStats();renderCards();renderTable();renderHiddenBar();}
 renderAll();
 document.getElementById('sortSel').addEventListener('change',e=>renderTable(e.target.value));
@@ -397,6 +412,12 @@ document.getElementById('bookOnlyBtn').addEventListener('click',e=>{
   e.currentTarget.textContent=(ONLYBOOK?'★':'☆')+' 북마크만';
   renderAll();
 });
+/* 직접추가만 보기 토글 */
+document.getElementById('addOnlyBtn').addEventListener('click',e=>{
+  ONLYADDED=!ONLYADDED;
+  e.currentTarget.classList.toggle('active',ONLYADDED);
+  renderAll();
+});
 /* 전체 복원 */
 document.getElementById('hiddenBar').addEventListener('click',e=>{
   if(e.target.id==='restoreBtn'){ HIDDEN.clear(); saveHidden(); renderAll(); }
@@ -407,7 +428,7 @@ document.getElementById('thead').addEventListener('click',e=>{const k=e.target.c
 
 /* footer */
 document.getElementById('foot').innerHTML =
-  `적용 필터: 실거래 5억↓ · 준공 1996↑ · 공급 20평↑(방2↑) · 용적률 250%↓ · 50세대↑ · <b>강남구청역 대중교통 60분↓(ODsay 실측)</b><br>`+
+  `적용 필터: 실거래 5억↓ · 준공 1996↑ · 공급 20평↑(방2↑) · 용적률 250%↓ · 50세대↑ · <b>강남구청역 대중교통 ${FILTERS.강남구청역_대중교통_최대_분||60}분↓(ODsay 실측)</b><br>`+
   `데이터: 국토부 실거래가·건축물대장 공식 API + ODsay 대중교통 · 대상 ${META.regions||''} · 생성 ${META.generated}`;
 
 /* theme */

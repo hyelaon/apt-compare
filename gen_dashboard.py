@@ -50,6 +50,13 @@ def merge_complexes(items):
     return out
 apts = merge_complexes(apts)
 
+# 제외지역: 주소에 특정 문자열(예: "화도읍")이 포함되면 제외. config에서 조정, 자동 갱신에도 유지.
+_excl = CFG.get("하드필터", {}).get("제외지역_주소포함") or []
+if _excl:
+    _b = len(apts)
+    apts = [a for a in apts if not any(x in (a.get("주소") or "") for x in _excl)]
+    print(f"제외지역({', '.join(_excl)}) 제외: {_b - len(apts)}개 → 남은 {len(apts)}개")
+
 # 네이버 매매 매물이 확인된 곳(>0)만 유지. 0건·미확인(네이버에서 안 잡힘=매물없음 추정) 제외.
 # 직접 추가(manual)는 항상 유지. 매물 복귀 시 다음 갱신에 자동 재등장(영구삭제 아님).
 _before = len(apts)
@@ -69,7 +76,8 @@ def metrics(a):
         cap = CFG["하드필터"]["매매최저가_최대_만원"]  # 5억 고정 기준(이상치에 안 흔들림)
         m["저평가도"] = clamp((cap - a["실거래_직전_만원"]) / (cap - 10000), 0, 1)  # 쌀수록 ↑
     if a.get("대중교통_분") is not None:
-        m["대중교통시간"] = clamp((60 - a["대중교통_분"]) / 50, 0, 1)
+        mm = CFG["하드필터"]["강남구청역_대중교통_최대_분"]  # 통근 상한(현 70분)
+        m["대중교통시간"] = clamp((mm - a["대중교통_분"]) / (mm - 10), 0, 1)
     elif a.get("직선거리_km") is not None:
         m["대중교통시간"] = clamp((26 - a["직선거리_km"]) / (26 - 3), 0, 1)
     if a.get("준공연도"):
@@ -91,11 +99,14 @@ def score(a):
         return 0
     return round(sum(W[k] * v for k, v in m.items()) / wsum * 100)
 
-GYEONGGI_BUKBU = ("구리", "남양주")  # 한강 이북. 필요시 의정부·양주·고양·파주 등 추가
 def region_group(addr):
-    if addr.startswith("서울"): return "서울"
-    if any(addr.startswith(x) for x in GYEONGGI_BUKBU): return "경기 북부"
-    return "경기 남부"
+    """주소를 시(市) 단위 권역으로. 서울은 '서울'로 묶고, 경기는 시 이름으로."""
+    p = (addr or "").strip().split()
+    if not p: return "기타"
+    if p[0] == "서울": return "서울"
+    if p[0] == "경기": return p[1] if len(p) > 1 else "경기"
+    t = p[0]                       # 예: '남양주시', '용인', '안양', '군포시'
+    return t if t.endswith("시") else t + "시"
 
 def est_rooms(m2):  # 전용면적 기반 방 개수 추정(아파트 통상 기준)
     if not m2: return None
