@@ -64,6 +64,12 @@ if _ymin:
     apts = [a for a in apts if not a.get("준공연도") or a["준공연도"] >= _ymin]
     print(f"준공 {_ymin}년 미만 제외: {_b - len(apts)}개 → 남은 {len(apts)}개")
 
+# 20평 이하 매물만 있는 단지 제외: 가장 큰 평형이 20평 이하면 제거(자동 갱신에도 유지).
+# (평형수=1·20평 같은 소형 단일 단지 → 네이버/호갱노노에도 20평 이하만 올라옴)
+_b = len(apts)
+apts = [a for a in apts if (a.get("평_최대") or a.get("대표평형_평") or 0) > 20]
+print(f"20평 이하 단일 단지 제외: {_b - len(apts)}개 → 남은 {len(apts)}개")
+
 # 네이버 매매 매물이 확인된 곳(>0)만 유지. 0건·미확인(네이버에서 안 잡힘=매물없음 추정) 제외.
 # 직접 추가(manual)는 항상 유지. 매물 복귀 시 다음 갱신에 자동 재등장(영구삭제 아님).
 _before = len(apts)
