@@ -147,6 +147,23 @@ for a in apts:
     a["매물링크_호갱"] = a.get("호갱링크") or ("https://www.google.com/search?q=" +
         urllib.parse.quote(f"{a['단지명']} {a.get('법정동명','')} 호갱노노"))
 
+# 신규 매물 표시: 직전 데이터 버전(생성일시) 대비 이번에 새로 등장한 단지를 표시.
+# 생성일시는 수집(collect_molit)이 돌 때만 바뀌므로, 수동 재생성으로는 신규 목록이 흔들리지 않는다.
+_gen = DB.get("생성일시", "")
+_ssp = os.path.join(BASE, "data", "seen_state.json")
+_ss = json.load(open(_ssp, encoding="utf-8")) if os.path.exists(_ssp) else {}
+_cur_ids = [a["단지번호"] for a in apts]
+if _ss.get("생성일시") == _gen:
+    _new = set(_ss.get("new_ids", []))                    # 같은 데이터 버전 → 이전 신규 유지
+else:
+    _base = set(_ss.get("ids", []))
+    _new = (set(_cur_ids) - _base) if _base else set()    # 첫 실행이면 신규 없음(기준선만 저장)
+    _ss = {"생성일시": _gen, "ids": _cur_ids, "new_ids": sorted(_new)}
+    json.dump(_ss, open(_ssp, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
+for a in apts:
+    a["신규"] = a["단지번호"] in _new
+print(f"신규 매물 표시: {len(_new)}개 (생성일시 {_gen})")
+
 regions = " · ".join(r["이름"] for r in CFG["대상권역"]["목록"] if r.get("status") == "active")
 payload = {
     "meta": {

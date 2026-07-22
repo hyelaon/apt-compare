@@ -72,6 +72,13 @@
   .addonly:hover{color:var(--add);border-color:var(--add)}
   .addonly.active{background:var(--add);color:#fff;border-color:var(--add)}
   :root[data-theme="dark"] .addonly.active{color:#0e1016}
+  .newonly{border:1px solid var(--border);background:var(--surface);color:var(--muted);
+    border-radius:999px;padding:7px 14px;font-size:13px;font-weight:700;cursor:pointer}
+  .newonly:hover{color:var(--good);border-color:var(--good)}
+  .newonly.active{background:var(--good);color:#fff;border-color:var(--good)}
+  :root[data-theme="dark"] .newonly.active{color:#0e1016}
+  .pill.new{background:var(--good);color:#fff}
+  :root[data-theme="dark"] .pill.new{color:#0e1016}
   .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:26px}
   .tile{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
     padding:14px 16px;box-shadow:var(--shadow)}
@@ -193,6 +200,7 @@
     <span class="rf-sep"></span>
     <button class="bookonly" id="bookOnlyBtn" type="button">☆ 북마크만</button>
     <button class="addonly" id="addOnlyBtn" type="button">＋ 직접추가만</button>
+    <button class="newonly" id="newOnlyBtn" type="button" style="display:none">🆕 새 매물만</button>
   </div>
 
   <div class="hiddenbar" id="hiddenBar"></div>
@@ -239,7 +247,7 @@ const wonR = v => {const e=Math.floor(v/10000),t=Math.round((v%10000)/1000);retu
 const scaleLabel = n => n==null?null : n>=1000?"대단지":n>=300?"중단지":"소단지";
 const rows = DATA.slice().sort((a,b)=>b._score-a._score);
 rows.forEach((r,i)=>r._rank=i+1);
-let REGION='all', ONLYBOOK=false, ONLYADDED=false;
+let REGION='all', ONLYBOOK=false, ONLYADDED=false, ONLYNEW=false;
 const HIDDEN=new Set(JSON.parse(localStorage.getItem('apt_hidden')||'[]'));
 const saveHidden=()=>localStorage.setItem('apt_hidden',JSON.stringify([...HIDDEN]));
 const BOOK=new Set(JSON.parse(localStorage.getItem('apt_bookmarks')||'[]'));
@@ -249,7 +257,7 @@ const saveComments=()=>localStorage.setItem('apt_comments',JSON.stringify(COMMEN
 let ASKING=JSON.parse(localStorage.getItem('apt_asking')||'{}');
 const saveAsking=()=>localStorage.setItem('apt_asking',JSON.stringify(ASKING));
 const esc=s=>(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-const filtered=()=>rows.filter(r=>!HIDDEN.has(r.단지번호)&&(!ONLYBOOK||BOOK.has(r.단지번호))&&(!ONLYADDED||r.추가유형==='직접')&&(REGION==='all'||r.권역===REGION));
+const filtered=()=>rows.filter(r=>!HIDDEN.has(r.단지번호)&&(!ONLYBOOK||BOOK.has(r.단지번호))&&(!ONLYADDED||r.추가유형==='직접')&&(!ONLYNEW||r.신규)&&(REGION==='all'||r.권역===REGION));
 
 /* status banner */
 document.getElementById('statusBanner').innerHTML =
@@ -305,6 +313,7 @@ function renderCards(){
       <div class="bar"><i style="width:${r._score}%"></i></div><div class="lab">선호<br>점수</div></div>
     <div class="price"><span class="big tnum">${won(r.실거래_직전_만원)}${(r.실거래_최고_만원&&r.실거래_최고_만원!==r.실거래_직전_만원)?`~${won(r.실거래_최고_만원)}`:''}</span>
       <span class="cap">실거래</span> ${underPill(r)}
+      ${r.신규?'<span class="pill new">🆕 새 매물</span>':''}
       ${r.가격메모?`<span class="pill good">🏷️ ${esc(r.가격메모)}</span>`:''}
       ${r.평형수>1?`<span class="pill neutral">${r.평형수}개 평형</span>`:''}
       ${r.호가_최저_만원?`<span class="pill warn">호가 ${wonR(r.호가_최저_만원)}~${wonR(r.호가_최고_만원)}${r.호가_매물수?` · ${r.호가_매물수}건`:''}</span>`:''}
@@ -418,6 +427,17 @@ document.getElementById('addOnlyBtn').addEventListener('click',e=>{
   e.currentTarget.classList.toggle('active',ONLYADDED);
   renderAll();
 });
+/* 새 매물만 보기 토글 — 신규 있을 때만 버튼 노출(개수 표시) */
+(function initNewBtn(){
+  const n=rows.filter(r=>r.신규).length, btn=document.getElementById('newOnlyBtn');
+  if(!n) return;                              // 이번 갱신에 새 매물 없으면 버튼 숨김
+  btn.style.display=''; btn.textContent=`🆕 새 매물만 ${n}`;
+  btn.addEventListener('click',e=>{
+    ONLYNEW=!ONLYNEW;
+    e.currentTarget.classList.toggle('active',ONLYNEW);
+    renderAll();
+  });
+})();
 /* 전체 복원 */
 document.getElementById('hiddenBar').addEventListener('click',e=>{
   if(e.target.id==='restoreBtn'){ HIDDEN.clear(); saveHidden(); renderAll(); }
