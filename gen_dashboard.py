@@ -50,24 +50,27 @@ def merge_complexes(items):
     return out
 apts = merge_complexes(apts)
 
+# 직접추가(사용자 큐레이션)는 아래 하드필터 전부 면제 — 나이·평형·지역 상관없이 항상 노출.
+def _manual(a): return a.get("추가유형") == "직접"
+
 # 제외지역: 주소에 특정 문자열(예: "화도읍")이 포함되면 제외. config에서 조정, 자동 갱신에도 유지.
 _excl = CFG.get("하드필터", {}).get("제외지역_주소포함") or []
 if _excl:
     _b = len(apts)
-    apts = [a for a in apts if not any(x in (a.get("주소") or "") for x in _excl)]
+    apts = [a for a in apts if _manual(a) or not any(x in (a.get("주소") or "") for x in _excl)]
     print(f"제외지역({', '.join(_excl)}) 제외: {_b - len(apts)}개 → 남은 {len(apts)}개")
 
 # 준공연도 하드필터: 오래된 아파트 제외(자동 갱신에도 유지). 현 기준 2006↑(2026 기준 21년 미만).
 _ymin = CFG.get("하드필터", {}).get("준공연도_최소")
 if _ymin:
     _b = len(apts)
-    apts = [a for a in apts if not a.get("준공연도") or a["준공연도"] >= _ymin]
+    apts = [a for a in apts if _manual(a) or not a.get("준공연도") or a["준공연도"] >= _ymin]
     print(f"준공 {_ymin}년 미만 제외: {_b - len(apts)}개 → 남은 {len(apts)}개")
 
 # 20평 이하 매물만 있는 단지 제외: 가장 큰 평형이 20평 이하면 제거(자동 갱신에도 유지).
 # (평형수=1·20평 같은 소형 단일 단지 → 네이버/호갱노노에도 20평 이하만 올라옴)
 _b = len(apts)
-apts = [a for a in apts if (a.get("평_최대") or a.get("대표평형_평") or 0) > 20]
+apts = [a for a in apts if _manual(a) or (a.get("평_최대") or a.get("대표평형_평") or 0) > 20]
 print(f"20평 이하 단일 단지 제외: {_b - len(apts)}개 → 남은 {len(apts)}개")
 
 # 네이버 매매 매물이 확인된 곳(>0)만 유지. 0건·미확인(네이버에서 안 잡힘=매물없음 추정) 제외.
